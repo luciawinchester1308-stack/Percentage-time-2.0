@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Time-Based Formula Calculator</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,12 +14,13 @@
       justify-content: center;
       height: 100vh;
     }
+
     .card {
       background: #ffffff;
       padding: 24px;
       border-radius: 12px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-      width: 440px;
+      width: 460px;
       text-align: center;
     }
 
@@ -44,7 +46,28 @@
     input {
       padding: 6px;
       font-size: 0.95rem;
-      width: 220px;
+      width: 230px;
+    }
+
+    .modeButtons {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 8px 0 4px 0;
+    }
+
+    .modeBtn {
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #e0e0e0;
+    }
+
+    .modeBtn.active {
+      background: #3498db;
+      color: white;
     }
 
     .nLine {
@@ -72,7 +95,7 @@
       margin-top: 14px;
     }
 
-    button {
+    button.ctrl {
       padding: 8px 14px;
       font-size: 0.9rem;
       border: none;
@@ -82,157 +105,205 @@
 
     .pause { background: #f1c40f; }
     .resume { background: #2ecc71; }
-    .reset { background: #e74c3c; color: #fff; }
+    .reset { background: #e74c3c; color: white; }
+
   </style>
 </head>
+
 <body>
-  <div class="card">
-    <h1>Percentage Calculator</h1>
+<div class="card">
 
-    <div class="kTop" id="kTop">K: — minutes</div>
+  <h1>Percentage Calculator</h1>
 
-    <div class="formula">f(n) = n / (K − n)</div>
+  <div class="kTop" id="kTop">K: — minutes</div>
 
-    <div class="row">
-      <input type="datetime-local" id="startInput" />
-    </div>
+  <div class="formula">f(n) = n / (K − n)</div>
 
-    <div class="row">
-      <input type="datetime-local" id="endInput" />
-    </div>
-
-    <div class="nLine" id="nLine">Minutes passed: —</div>
-
-    <div class="result" id="result">Result: —</div>
-    <div class="warning" id="warning"></div>
-
-    <div class="buttons">
-      <button class="pause" id="pauseBtn">Pause</button>
-      <button class="resume" id="resumeBtn" disabled>Resume</button>
-      <button class="reset" id="resetBtn">Reset</button>
-    </div>
+  <div class="row">
+    <input type="datetime-local" id="startInput">
   </div>
 
-  <script>
-    const startInput = document.getElementById('startInput');
-    const endInput = document.getElementById('endInput');
+  <div class="row">
+    <input type="datetime-local" id="endInput">
+  </div>
 
-    const kTop = document.getElementById('kTop');
-    const nLine = document.getElementById('nLine');
-    const resultEl = document.getElementById('result');
-    const warningEl = document.getElementById('warning');
+  <!-- K MODE TOGGLE -->
+  <div class="modeButtons">
+    <button class="modeBtn active" id="modePauseOn">K accounts for pause</button>
+    <button class="modeBtn" id="modePauseOff">K ignores pause</button>
+  </div>
 
-    const pauseBtn = document.getElementById('pauseBtn');
-    const resumeBtn = document.getElementById('resumeBtn');
-    const resetBtn = document.getElementById('resetBtn');
+  <div class="nLine" id="nLine">Minutes passed: —</div>
 
-    let paused = false;
-    let pausedAt = null;
-    let totalPausedMs = 0;
+  <div class="result" id="result">Result: —</div>
+  <div class="warning" id="warning"></div>
 
-    function getStartMs() {
-      return startInput.value ? new Date(startInput.value).getTime() : null;
-    }
+  <div class="buttons">
+    <button class="ctrl pause" id="pauseBtn">Pause</button>
+    <button class="ctrl resume" id="resumeBtn" disabled>Resume</button>
+    <button class="ctrl reset" id="resetBtn">Reset</button>
+  </div>
 
-    function getEndMs() {
-      return endInput.value ? new Date(endInput.value).getTime() : null;
-    }
+</div>
 
-    function getNMinutes(startMs) {
-      if (!startMs) return NaN;
-      return (Date.now() - startMs - totalPausedMs) / 60000;
-    }
+<script>
+const startInput = document.getElementById('startInput');
+const endInput = document.getElementById('endInput');
 
-    function getKMinutes(startMs, endMs) {
-      if (!startMs || !endMs) return NaN;
-      return (endMs - startMs - totalPausedMs) / 60000;
-    }
-    function update() {
-      if (paused) return;
+const kTop = document.getElementById('kTop');
+const nLine = document.getElementById('nLine');
+const resultEl = document.getElementById('result');
+const warningEl = document.getElementById('warning');
 
-      const startMs = getStartMs();
-      const endMs = getEndMs();
+const pauseBtn = document.getElementById('pauseBtn');
+const resumeBtn = document.getElementById('resumeBtn');
+const resetBtn = document.getElementById('resetBtn');
 
-      const n = getNMinutes(startMs);
-      const K = getKMinutes(startMs, endMs);
+const modePauseOn = document.getElementById('modePauseOn');
+const modePauseOff = document.getElementById('modePauseOff');
 
-      kTop.textContent = isFinite(K)
-        ? `K: ${K.toFixed(2)} minutes`
-        : 'K: — minutes';
+let paused = false;
+let pausedAt = null;
+let totalPausedMs = 0;
 
-      nLine.textContent = isFinite(n)
-        ? `Minutes passed: ${n.toFixed(2)}`
-        : 'Minutes passed: —';
+let kAccountsForPause = true;
 
-      if (!isFinite(n) || !isFinite(K)) {
-        resultEl.textContent = 'Result: —';
-        warningEl.textContent = 'Select start and end times';
-        return;
-      }
+/* ---------- Mode Toggle ---------- */
 
-      if (K <= 0) {
-        resultEl.textContent = 'Result: —';
-        warningEl.textContent = 'End must be after start';
-        return;
-      }
+modePauseOn.onclick = () => {
+  kAccountsForPause = true;
+  modePauseOn.classList.add('active');
+  modePauseOff.classList.remove('active');
+  update();
+};
 
-      if (n < 0) {
-        resultEl.textContent = 'Result: —';
-        warningEl.textContent = 'Waiting for start time…';
-        return;
-      }
+modePauseOff.onclick = () => {
+  kAccountsForPause = false;
+  modePauseOff.classList.add('active');
+  modePauseOn.classList.remove('active');
+  update();
+};
 
-      if (n >= K) {
-        resultEl.textContent = 'Result: —';
-        warningEl.textContent = 'n ≥ K';
-        return;
-      }
+/* ---------- Time Helpers ---------- */
 
-      warningEl.textContent = '';
-      const value = n / (K - n);
-      resultEl.textContent = `Result: ${value.toFixed(4)}`;
-    }
+function getStartMs() {
+  return startInput.value ? new Date(startInput.value).getTime() : null;
+}
 
-    pauseBtn.onclick = () => {
-      if (paused) return;
-      paused = true;
-      pausedAt = Date.now();
-      pauseBtn.disabled = true;
-      resumeBtn.disabled = false;
-    };
+function getEndMs() {
+  return endInput.value ? new Date(endInput.value).getTime() : null;
+}
 
-    resumeBtn.onclick = () => {
-      if (!paused) return;
-      paused = false;
-      totalPausedMs += Date.now() - pausedAt;
-      pausedAt = null;
-      pauseBtn.disabled = false;
-      resumeBtn.disabled = true;
-      update();
-    };
+function getNMinutes(startMs) {
+  if (!startMs) return NaN;
+  return (Date.now() - startMs - totalPausedMs) / 60000;
+}
 
-    resetBtn.onclick = () => {
-      paused = false;
-      pausedAt = null;
-      totalPausedMs = 0;
-      startInput.value = '';
-      endInput.value = '';
-      kTop.textContent = 'K: — minutes';
-      nLine.textContent = 'Minutes passed: —';
-      resultEl.textContent = 'Result: —';
-      warningEl.textContent = '';
-      pauseBtn.disabled = false;
-      resumeBtn.disabled = true;
-    };
+function getKMinutes(startMs, endMs) {
+  if (!startMs || !endMs) return NaN;
 
-    startInput.addEventListener('change', () => {
-      totalPausedMs = 0;
-      update();
-    });
+  const base = endMs - startMs;
 
-    endInput.addEventListener('change', update);
+  const adjusted = kAccountsForPause
+    ? base - totalPausedMs
+    : base;
 
-    setInterval(update, 1000);
-  </script>
+  return adjusted / 60000;
+}
+
+/* ---------- Main Update ---------- */
+
+function update() {
+  if (paused) return;
+
+  const startMs = getStartMs();
+  const endMs = getEndMs();
+
+  const n = getNMinutes(startMs);
+  const K = getKMinutes(startMs, endMs);
+
+  kTop.textContent = isFinite(K)
+    ? `K: ${K.toFixed(2)} minutes`
+    : 'K: — minutes';
+
+  nLine.textContent = isFinite(n)
+    ? `Minutes passed: ${n.toFixed(2)}`
+    : 'Minutes passed: —';
+
+  if (!isFinite(n) || !isFinite(K)) {
+    resultEl.textContent = 'Result: —';
+    warningEl.textContent = 'Select start and end times';
+    return;
+  }
+
+  if (K <= 0) {
+    resultEl.textContent = 'Result: —';
+    warningEl.textContent = 'End must be after start';
+    return;
+  }
+
+  if (n < 0) {
+    resultEl.textContent = 'Result: —';
+    warningEl.textContent = 'Waiting for start time…';
+    return;
+  }
+
+  if (n >= K) {
+    resultEl.textContent = 'Result: —';
+    warningEl.textContent = 'n ≥ K';
+    return;
+  }
+
+  warningEl.textContent = '';
+  const value = n / (K - n);
+  resultEl.textContent = `Result: ${value.toFixed(4)}`;
+}
+
+/* ---------- Controls ---------- */
+
+pauseBtn.onclick = () => {
+  if (paused) return;
+  paused = true;
+  pausedAt = Date.now();
+  pauseBtn.disabled = true;
+  resumeBtn.disabled = false;
+};
+
+resumeBtn.onclick = () => {
+  if (!paused) return;
+  paused = false;
+  totalPausedMs += Date.now() - pausedAt;
+  pausedAt = null;
+  pauseBtn.disabled = false;
+  resumeBtn.disabled = true;
+  update();
+};
+
+resetBtn.onclick = () => {
+  paused = false;
+  pausedAt = null;
+  totalPausedMs = 0;
+  startInput.value = '';
+  endInput.value = '';
+  kTop.textContent = 'K: — minutes';
+  nLine.textContent = 'Minutes passed: —';
+  resultEl.textContent = 'Result: —';
+  warningEl.textContent = '';
+  pauseBtn.disabled = false;
+  resumeBtn.disabled = true;
+};
+
+/* ---------- Events ---------- */
+
+startInput.addEventListener('change', () => {
+  totalPausedMs = 0;
+  update();
+});
+
+endInput.addEventListener('change', update);
+
+setInterval(update, 1000);
+</script>
+
 </body>
 </html>
