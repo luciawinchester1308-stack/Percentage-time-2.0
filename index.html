@@ -145,9 +145,8 @@
 
     function getKMinutes(startMs, endMs) {
       if (!startMs || !endMs) return NaN;
-      return (endMs - startMs) / 60000;
+      return (endMs - startMs - totalPausedMs) / 60000;
     }
-
     function update() {
       if (paused) return;
 
